@@ -135,6 +135,7 @@
     <ClInclude Include="aabb.hpp" />
     <ClInclude Include="bvh.hpp" />
     <ClInclude Include="photon.hpp" />
+    <ClInclude Include="photon_map.hpp" />
     <ClInclude Include="ray.hpp" />
     <ClInclude Include="renderable.hpp" />
     <ClInclude Include="scene.hpp" />

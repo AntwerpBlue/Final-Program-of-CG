@@ -50,10 +50,11 @@ public:
 	}
 
 
-	virtual Ray get_next_ray(Ray& in, v3f pos) = 0;
+	virtual std::pair<Ray, InteractType> get_next_ray_type(Ray& in, v3f pos) = 0;
 	virtual v3f get_bsdf(InteractType type, v3f in_dir, v3f out_dir, v3f pos) = 0;
 	virtual std::pair<float, v3f> try_intersect_ray(Ray& in) = 0;
 	virtual Photon emit_a_photon() = 0;
+	virtual v3f get_norm() = 0;
 
 
 	std::mt19937 rng;
@@ -114,7 +115,7 @@ public:
 		else
 			return std::make_pair(-114514.0f, v3f::Zero());
 	}
-	virtual Ray get_next_ray(Ray& in, v3f pos) override
+	virtual std::pair<Ray, InteractType> get_next_ray_type(Ray& in, v3f pos) override
 	{
 		std::uniform_real_distribution<float> choose_material(0, 1);
 		float thresh = choose_material(rng);
@@ -148,7 +149,7 @@ public:
 
 			v3f dir = x * x_axis + y * y_axis + z * norm;
 			Ray ret(pos, dir.normalized());
-			return ret;
+			return std::make_pair(ret, LAMB);
 		}
 		else if (current_type == SPEC) // use the ray in to calculate the reflected ray
 		{
@@ -156,7 +157,7 @@ public:
 			v3f dir_out = 2 * norm * norm.dot(dir_in) - dir_in;
 
 			Ray ret(pos, dir_out);
-			return ret;
+			return std::make_pair(ret, SPEC);
 		}
 		else if (current_type == TRAN) // use the ray in and the n to calculate the ray
 		{
@@ -171,7 +172,8 @@ public:
 				v3f y_axis = (dir_in.dot(norm) * norm - dir_in).normalized();
 				v3f dir_out = -norm * in_cos + y_axis * in_sin;
 				Ray ret(pos, dir_out);
-				return ret;
+				return std::make_pair(ret, TRAN);
+
 			}
 			else
 			{ // outward
@@ -180,12 +182,13 @@ public:
 				v3f y_axis = (dir_in.dot(norm) * norm - dir_in).normalized();
 				v3f dir_out = norm * in_cos + y_axis * in_sin;
 				Ray ret(pos, dir_out);
-				return ret;
+				return std::make_pair(ret, TRAN);
+
 			}
 		}
 		else // default
 		{
-			return in; // return itself
+			return std::make_pair(in, TRAN); // return itself
 		}
 	}
 
@@ -211,7 +214,7 @@ public:
 		}
 	}
 
-	virtual Photon emit_a_photon()
+	virtual Photon emit_a_photon() override
 	{
 		// cosine weighted
 		float A = (v1 - v0).cross(v2 - v0).norm() / 2; // the area
@@ -241,6 +244,11 @@ public:
 		v3f dir = x_axis * x + y_axis * y + z * norm;
 		return Photon(power, emit_position, dir);
 	}
+	virtual v3f get_norm() override
+	{
+		return norm;
+	}
+
 };
 
 

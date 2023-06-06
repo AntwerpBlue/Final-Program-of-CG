@@ -58,3 +58,7 @@ def dispatch_material(
     with open(fn,"w") as f:
         f.writelines(res)
 
+dispatch_material("basic_box_blue_wall.obj.mdl", parse_obj("basic_box_blue_wall.obj"), 1, False, True, False, False, 0.0, 1.0, 0.0, [0.0, 0.0, 1.0], 0, 1);
+dispatch_material("basic_box_lt.obj.mdl", parse_obj("basic_box_lt.obj"), 1, False,True,False, True, 0.0, 1.0, 0.0, [1.,1.,1.], 600, 1)
+dispatch_material("basic_box_spec_wall.obj.mdl", parse_obj("basic_box_spec_wall.obj"), 1, True, False, False, False, 1.0, 0, 0, [1.,1.,1.], 0, 1)
+dispatch_material("basic_box_white_walls.obj.mdl", parse_obj("basic_box_white_walls.obj"), 1, False, True, False, False, 0.0, 1.0, 0.0, [1.0,1.0, 1.0], 0, 1)

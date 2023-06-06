@@ -122,6 +122,7 @@ public:
 	IntersectInfo get_first_intersection(Ray& ray)
 	{
 		IntersectInfo res;
+		res.do_intersect = false;
 		res.distance = 1e20;
 		std::queue<BVHNd*> traverse_queue;
 		traverse_queue.push(root);
