@@ -44,9 +44,9 @@ public:
 	{
 		std::random_device dev;
 		rng = std::mt19937(dev());
-		if (sp) available_mat.push_back(SPEC);
-		if (lb) available_mat.push_back(LAMB);
-		if (tr) available_mat.push_back(TRAN);
+		if (sp) available_mat.push_back(std::make_pair(SPEC, spec_ratio));
+		if (lb) available_mat.push_back(std::make_pair(LAMB, lamb_ratio));
+		if (tr) available_mat.push_back(std::make_pair(TRAN, tran_ratio));
 	}
 
 
@@ -57,7 +57,7 @@ public:
 
 
 	std::mt19937 rng;
-	std::vector<InteractType> available_mat;
+	std::vector<std::pair<InteractType, float>> available_mat;
 };
 
 
@@ -116,8 +116,20 @@ public:
 	}
 	virtual Ray get_next_ray(Ray& in, v3f pos) override
 	{
-		std::uniform_int_distribution<int> choose_material(0, n_materials-1);
-		InteractType current_type = available_mat[choose_material(rng)];
+		std::uniform_real_distribution<float> choose_material(0, 1);
+		float thresh = choose_material(rng);
+		InteractType current_type = LAMB;
+		float acc = 0.0f;
+		for (auto m : available_mat)
+		{
+			acc += m.second;
+			if (acc >= thresh)
+			{
+				current_type = m.first;
+				break;
+			}
+		}
+
 		if (current_type == LAMB) // not realated with the ray in
 		{
 			std::uniform_real_distribution<float> choose_cos_phi(-1, 1);

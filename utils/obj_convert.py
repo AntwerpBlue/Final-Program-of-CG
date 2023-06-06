@@ -23,10 +23,38 @@ def parse_obj(filename: str) -> list[list[float]]:
     return facets
 
 
-def dispatch_material(vertices: list[list[float]], color: list[float], illu: float = 600., ref_type: int = 0x02,
-                      n: float = 1.0) -> list[dict]:
-    res = []
-    for v in vertices:
-        d = {"vertex": v, "color": color, "illu": illu, "ref_type": ref_type, "n": n}
-        res.append(d)
-    return res
+def dispatch_material(
+    fn,
+    objs: list[list[float]],
+    n_material: int,
+    has_spec: bool,
+    has_lamb: bool,
+    has_tran: bool,
+    is_light: bool,
+    spec_ratio: float,
+    lamb_ratio: float,
+    tran_ratio: float,
+    color: list[float],
+    emit:float,
+    n: float):
+    res:list[str] = list()
+    
+    for t in objs:
+        line = list(map(lambda x: str(x), t))
+        line.append(str(n_material))
+        line.append("1" if has_spec else "0")
+        line.append("1" if has_lamb else "0")
+        line.append("1" if has_tran else "0")
+        line.append("1" if is_light else "0")
+        line.append(str(spec_ratio))
+        line.append(str(lamb_ratio))
+        line.append(str(tran_ratio))
+        line += list(map(lambda x: str(x), color))
+        line.append(str(emit))
+        line.append(str(n))
+        res.append(" ".join(line))
+        res.append('\n')
+        
+    with open(fn,"w") as f:
+        f.writelines(res)
+dispatch_material("res.txt", parse_obj("monkey.obj"), 1, False, True, False, False, 0,1,0, [1,1,1], 1000, 1)
