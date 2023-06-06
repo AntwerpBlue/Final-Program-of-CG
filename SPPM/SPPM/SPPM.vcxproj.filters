@@ -19,4 +19,27 @@
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stb_image.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ray.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="aabb.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="renderable.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="bvh.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="photon.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="scene.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>
