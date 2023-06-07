@@ -201,7 +201,7 @@ public:
 		}
 		else if (type == LAMB)
 		{
-			return color / EIGEN_PI;
+			return color / EIGEN_PI; // no matter what the direction is
 		}
 		else if (type == TRAN)
 		{

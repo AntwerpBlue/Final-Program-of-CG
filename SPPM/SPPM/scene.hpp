@@ -84,9 +84,10 @@ public:
 				emit,
 				n
 			);
-
 			res.push_back(p);
 		}
+		infile.close();
+
 		return res;
 	}
 };

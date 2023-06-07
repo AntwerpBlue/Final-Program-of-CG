@@ -4,6 +4,7 @@
 #include"bvh.hpp"
 #include "scene.hpp"
 #include "photon_map.hpp"
+#include <fstream>
 int main()
 {
 	std::string fn("all_models.models");
@@ -17,12 +18,8 @@ int main()
 
 	scene.construct_bvh();
 
+	PhotonMap phm(scene, 100000);
 
-	std::cout << scene.light_src.size() << '\n';
-
-	PhotonMap phm(scene, 10000);
-
-	std::cout << phm.photon_record.size() << '\n';
 
 
 	return EXIT_SUCCESS;

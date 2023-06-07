@@ -134,6 +134,7 @@
   <ItemGroup>
     <ClInclude Include="aabb.hpp" />
     <ClInclude Include="bvh.hpp" />
+    <ClInclude Include="camera.hpp" />
     <ClInclude Include="photon.hpp" />
     <ClInclude Include="photon_map.hpp" />
     <ClInclude Include="ray.hpp" />
