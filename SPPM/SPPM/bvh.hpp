@@ -4,6 +4,7 @@
 #include "renderable.hpp"
 #include <vector>
 #include <queue>
+#include <iostream>
 struct BVHNd
 {
 	BVHNd* lc, * rc;
@@ -68,7 +69,7 @@ public:
 			axis += 1;
 			axis %= 3;
 		}
-
+		std::cout << "sort over" << '\n';
 		// construct the tree
 	
 		for (int i = 0; i < obj_ptr_list.size(); ++i)
@@ -78,10 +79,13 @@ public:
 			nd->rd_obj = obj_ptr_list[i];
 			tree_nodes.push_back(nd);
 		}
+		std::cout << "pushed basic ptrs" << '\n';
 
 		int st = 0, ed = obj_ptr_list.size() - 1;
 		while (st < ed)
 		{
+			std::cout << st << '\t' << ed << '\n';
+
 			int new_nodes = 0;
 			for (int i = st; i <= ed;i += 2)
 			{
@@ -107,7 +111,8 @@ public:
 			ed = st + new_nodes - 1;
 		}
 		root = tree_nodes[tree_nodes.size() - 1];
-		
+		std::cout << "bvh construction over" << '\n';
+
 	}
 	
 	~BVH()
@@ -119,7 +124,7 @@ public:
 	}
 
 	
-	IntersectInfo get_first_intersection(Ray& ray)
+	IntersectInfo get_first_intersection(Ray& ray, Renderable* obj)
 	{
 		IntersectInfo res;
 		res.do_intersect = false;
@@ -136,7 +141,7 @@ public:
 				if (top->rd_obj) // is a leaf
 				{
 					auto info = top->rd_obj->try_intersect_ray(ray);
-					if (info.first > 0 && info.first < res.distance)
+					if (top->rd_obj != obj && info.first > 0 && info.first < res.distance)
 					{
 						IntersectInfo inter;
 						inter.obj = top->rd_obj;

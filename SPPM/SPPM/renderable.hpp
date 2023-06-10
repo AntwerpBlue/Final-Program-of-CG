@@ -49,11 +49,12 @@ public:
 		if (tr) available_mat.push_back(std::make_pair(TRAN, tran_ratio));
 	}
 
-
+	virtual std::pair<Ray, InteractType> get_next_ray_type(Ray& in, v3f pos, std::mt19937 & random_eng) = 0;
 	virtual std::pair<Ray, InteractType> get_next_ray_type(Ray& in, v3f pos) = 0;
 	virtual v3f get_bsdf(InteractType type, v3f in_dir, v3f out_dir, v3f pos) = 0;
 	virtual std::pair<float, v3f> try_intersect_ray(Ray& in) = 0;
 	virtual Photon emit_a_photon() = 0;
+	virtual Photon emit_a_photon(std::mt19937 &random_eng) = 0;
 	virtual v3f get_norm() = 0;
 
 
@@ -170,6 +171,94 @@ public:
 
 				// the "x-axis" is -norm
 				v3f y_axis = (dir_in.dot(norm) * norm - dir_in).normalized();
+
+				v3f dir_out = -norm * in_cos + y_axis * in_sin;
+				Ray ret(pos , dir_out);
+				return std::make_pair(ret, TRAN);
+
+			}
+			else
+			{ // outward
+				float in_sin = std::sqrt(1 - cos_theta * cos_theta) * n_t;
+
+				if (in_sin >= 1) // full ref
+				{
+					v3f dir_out = 2 * norm * norm.dot(dir_in) - dir_in;
+					Ray ret(pos, dir_out);
+					return std::make_pair(ret, SPEC);
+				}
+				else
+				{
+					float in_cos = std::sqrt(1 - in_sin * in_sin);
+					v3f y_axis = (dir_in.dot(norm) * norm - dir_in).normalized();
+					v3f dir_out = norm * in_cos + y_axis * in_sin;
+					Ray ret(pos, dir_out);
+					return std::make_pair(ret, TRAN);
+
+				}
+			}
+		}
+		else // default
+		{
+			return std::make_pair(in, TRAN); // return itself
+		}
+	}
+
+	virtual std::pair<Ray, InteractType> get_next_ray_type(Ray& in, v3f pos, std::mt19937& random_eng) override
+	{
+		std::uniform_real_distribution<float> choose_material(0, 1);
+		float thresh = choose_material(random_eng);
+		InteractType current_type = LAMB;
+		float acc = 0.0f;
+		for (auto m : available_mat)
+		{
+			acc += m.second;
+			if (acc >= thresh)
+			{
+				current_type = m.first;
+				break;
+			}
+		}
+
+		if (current_type == LAMB) // not realated with the ray in
+		{
+			std::uniform_real_distribution<float> choose_cos_phi(-1, 1);
+			std::uniform_real_distribution<float> choose_theta(0, 2 * EIGEN_PI);
+			float u = choose_cos_phi(random_eng);
+			float theta = choose_theta(random_eng);
+
+			// get the sample direction in the local coordinate
+			float x = std::sqrt(1 - u * u) * std::cos(theta);
+			float y = std::sqrt(1 - u * u) * std::sin(theta);
+			float z = std::abs(u);
+
+			// generate the local coordinate
+			v3f x_axis = (v1 - v0).normalized();
+			v3f y_axis = norm.cross(x_axis);
+
+			v3f dir = x * x_axis + y * y_axis + z * norm;
+			Ray ret(pos, dir.normalized());
+			return std::make_pair(ret, LAMB);
+		}
+		else if (current_type == SPEC) // use the ray in to calculate the reflected ray
+		{
+			v3f dir_in = -in.dir;
+			v3f dir_out = 2 * norm * norm.dot(dir_in) - dir_in;
+
+			Ray ret(pos, dir_out);
+			return std::make_pair(ret, SPEC);
+		}
+		else if (current_type == TRAN) // use the ray in and the n to calculate the ray
+		{
+			v3f dir_in = -in.dir;
+			float cos_theta = -in.dir.dot(norm);
+			if (cos_theta > 0)
+			{ // inward
+				float in_sin = std::sqrt(1 - cos_theta * cos_theta) / n_t;
+				float in_cos = std::sqrt(1 - in_sin * in_sin);
+
+				// the "x-axis" is -norm
+				v3f y_axis = (dir_in.dot(norm) * norm - dir_in).normalized();
 				v3f dir_out = -norm * in_cos + y_axis * in_sin;
 				Ray ret(pos, dir_out);
 				return std::make_pair(ret, TRAN);
@@ -178,11 +267,21 @@ public:
 			else
 			{ // outward
 				float in_sin = std::sqrt(1 - cos_theta * cos_theta) * n_t;
-				float in_cos = std::sqrt(1 - in_sin * in_sin);
-				v3f y_axis = (dir_in.dot(norm) * norm - dir_in).normalized();
-				v3f dir_out = norm * in_cos + y_axis * in_sin;
-				Ray ret(pos, dir_out);
-				return std::make_pair(ret, TRAN);
+				if (in_sin >= 1) // full ref
+				{
+					v3f dir_out = 2 * norm * norm.dot(dir_in) - dir_in;
+					Ray ret(pos, dir_out);
+					return std::make_pair(ret, SPEC);
+				}
+				else
+				{
+					float in_cos = std::sqrt(1 - in_sin * in_sin);
+					v3f y_axis = (dir_in.dot(norm) * norm - dir_in).normalized();
+					v3f dir_out = norm * in_cos + y_axis * in_sin;
+					Ray ret(pos, dir_out);
+					return std::make_pair(ret, TRAN);
+
+				}
 
 			}
 		}
@@ -191,6 +290,7 @@ public:
 			return std::make_pair(in, TRAN); // return itself
 		}
 	}
+
 
 	virtual v3f get_bsdf(InteractType type, v3f in_dir, v3f out_dir, v3f pos)
 	{
@@ -230,11 +330,11 @@ public:
 			u = 1 - u;
 			v = 1 - v;
 		}
-		v3f emit_position = (v1 - v0) * u + (v2 - v0) * v;
+		v3f emit_position = (v1 - v0) * u + (v2 - v0) * v + v0;
 		
 		float x = u11(rng), y = u11(rng);
 
-		if (x * x + y * y > 1)
+		while (x * x + y * y > 1)
 		{
 			x = u11(rng); y = u11(rng);
 		}
@@ -244,6 +344,39 @@ public:
 		v3f dir = x_axis * x + y_axis * y + z * norm;
 		return Photon(power, emit_position, dir);
 	}
+
+	virtual Photon emit_a_photon(std::mt19937& random_eng)override
+	{
+		// cosine weighted
+		float A = (v1 - v0).cross(v2 - v0).norm() / 2; // the area
+		// the power is Pi*A*Le
+		v3f power = EIGEN_PI * A * color * emit_power;
+
+		std::uniform_real_distribution<float> u01(0, 1);
+		std::uniform_real_distribution<float> u11(-1, 1);
+
+		float u = u01(random_eng), v = u01(random_eng);
+		if (u + v > 1)
+		{
+			u = 1 - u;
+			v = 1 - v;
+		}
+		v3f emit_position = (v1 - v0) * u + (v2 - v0) * v + v0;
+
+		float x = u11(random_eng), y = u11(random_eng);
+
+		while (x * x + y * y > 1)
+		{
+			x = u11(random_eng); y = u11(random_eng);
+		}
+		float z = std::sqrt(1 - x * x - y * y);
+		v3f x_axis = (v1 - v0).normalized();
+		v3f y_axis = norm.cross(x_axis);
+		v3f dir = x_axis * x + y_axis * y + z * norm;
+		return Photon(power, emit_position, dir);
+	}
+
+
 	virtual v3f get_norm() override
 	{
 		return norm;

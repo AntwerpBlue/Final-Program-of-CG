@@ -136,11 +136,14 @@
     <ClInclude Include="bvh.hpp" />
     <ClInclude Include="camera.hpp" />
     <ClInclude Include="photon.hpp" />
+    <ClInclude Include="photon_kdt.hpp" />
     <ClInclude Include="photon_map.hpp" />
     <ClInclude Include="ray.hpp" />
     <ClInclude Include="renderable.hpp" />
     <ClInclude Include="scene.hpp" />
     <ClInclude Include="stb_image.h" />
+    <ClInclude Include="stb_image_resize.h" />
+    <ClInclude Include="stb_image_write.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
