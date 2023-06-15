@@ -12,11 +12,17 @@
 #include "stb_image_write.h"
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize.h"
+#include "SppmManager.hpp"
+#include <algorithm>
+#include<thread>
 using v3f = Eigen::Vector3f;
-
+const float scaling_factor = 0.2;
+const int iter_times = 1500;
+const int w = 200;
+const int h = 200;
 int main()
 {
-	std::string fn("all_models_3.models");
+	std::string fn("all_models_2.models");
 	Scene scene;
 
 	auto v = Scene::parse_triangle_file(fn);
@@ -27,49 +33,49 @@ int main()
 	std::cout << "start constructing bvh" << '\n';
 
 	scene.construct_bvh();
-	std::cout << "start constructing map" << '\n';
 
-	PhotonMap phm;
-	//phm.get_map(100000, scene, 5);
-	phm.get_map_mt(8, 100000, scene, 5);
+	
+	Cam cam(v3f(2, 0, 0), v3f(0, 1, 0), v3f(-1, 0, 0), w, h, 90, 1, 1);
 
- 	std::cout << "start constructing kdt" << '\n';
-	KDT kdt(phm.photon_record);
+	
+
+	SppmManager man(cam);
+	std::cout << std::thread::hardware_concurrency() << std::endl;
+	//man.initialize_samples_mt(scene, std::thread::hardware_concurrency());
+	man.initialize_samples(scene);
+
+
+	for (int i = 0; i<iter_times; ++i)
+	{
+		std::cout << "Round:" << i << '\n';
+		man.single_run(scene);
+	}
+
+	float hd_scale;
+	std::cout << "input the scale"<<std::endl;
+	while (true)
+	{
+		std::cin >> hd_scale;
+		std::cout << "start write" << '\n';
+		std::vector<unsigned char> pixel(cam.w * cam.h * 3);
+		for (int x = 0; x < cam.w; ++x)
+		{
+			for (int y = 0; y < cam.h; ++y)
+			{
+				auto v = man.get_value(hd_scale, x, y);
+
+				pixel[3 * (y * cam.w + x)] = v(0);
+				pixel[3 * (y * cam.w + x) + 1] = v(1);
+				pixel[3 * (y * cam.w + x) + 2] = v(2);
+			}
+		}
+
+		stbi_write_bmp("res.bmp", cam.w, cam.h, 3, pixel.data());
+
+	}
 
 
 	
-	Cam cam(v3f(2, 0, 0), v3f(0, 1, 0), v3f(-1, 0, 0), 400, 400, 90, 1, 1);
 
-	const float thresh = 7.0f;
-	std::cout << "start" << '\n';
-	std::vector<unsigned char> pixel(cam.w * cam.h * 3);
-	for (int x = 0; x < cam.w; ++x)
-	{
-		for (int y = 0; y < cam.h; ++y)
-		{
-			v3f radi(0, 0, 0);
-			for (int i = 0; i < cam.sub_x*cam.sub_y; ++i)
-			{
-				radi += cam.single_sample(x, y, i/cam.sub_x, i%cam.sub_y, scene, kdt);
-			}
-			radi /= cam.sub_x * cam.sub_y;
-			
-			pixel[3 * (y * cam.w + x)] = char(std::min(radi(0)/thresh, 1.0f)*0xff);
-			pixel[3 * (y * cam.w + x)+1] = char(std::min(radi(1)/thresh, 1.0f)*0xff);
-			pixel[3 * (y * cam.w + x)+2] = char(std::min(radi(2)/thresh, 1.0f)*0xff);
-		}
-		if (x % 10 == 0) std::cout << x << '\n';
-	}
-
-	stbi_write_bmp("res.bmp", cam.w, cam.h, 3, pixel.data());
-
-	std::fstream photons_file("photons.csv", std::ios::out);
-	for (auto& p : phm.photon_record)
-	{
-		auto pos = p.ray.pos;
-		photons_file << pos(0) << ',' << pos(1) << ',' << pos(2) << "\n";
-	}
-
-	photons_file.close();
 	return EXIT_SUCCESS;
 }

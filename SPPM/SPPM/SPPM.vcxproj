@@ -141,6 +141,7 @@
     <ClInclude Include="ray.hpp" />
     <ClInclude Include="renderable.hpp" />
     <ClInclude Include="scene.hpp" />
+    <ClInclude Include="SppmManager.hpp" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="stb_image_resize.h" />
     <ClInclude Include="stb_image_write.h" />

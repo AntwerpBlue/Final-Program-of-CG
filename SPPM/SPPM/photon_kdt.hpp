@@ -5,6 +5,7 @@
 #include <queue>
 #include <vector>
 #include <stack>
+#include <algorithm>
 struct KDTNd
 {
 	Photon *ph; // the photon
@@ -146,16 +147,42 @@ public:
 				recursive_kdt_search(pq, N, nd->lc, pos);
 			}
 		}
+	}
 
-	/*	if (pq.size() < N
-			|| std::abs(pos(nd->axis) - nd->ph->ray.pos(nd->axis)) < pq.top().first)
+	void recursive_kdt_search_with_norm(pq_kdt& pq, int N, KDTNd* nd, v3f& pos, v3f& norm)
+	{
+		if (!nd) return;
+
+		float d = (nd->ph->ray.pos - pos).norm() ;
+		nd->visited = true;
+		if (pq.size() < N)
 		{
-			if(nd->lc && nd->lc->visited)
+			pq.push(std::make_pair(d, nd));
+		}
+		else if (d < pq.top().first)
+		{
+			pq.pop();
+			pq.push(std::make_pair(d, nd));
+		}
+
+		if (pos(nd->axis) < nd->ph->ray.pos(nd->axis))
+		{
+			recursive_kdt_search(pq, N, nd->lc, pos);
+			if (pq.size() < N
+				|| std::abs(pos(nd->axis) - nd->ph->ray.pos(nd->axis)) < pq.top().first)
+			{
 				recursive_kdt_search(pq, N, nd->rc, pos);
-			else if (nd->rc && nd->rc->visited)
+			}
+		}
+		else
+		{
+			recursive_kdt_search(pq, N, nd->rc, pos);
+			if (pq.size() < N
+				|| std::abs(pos(nd->axis) - nd->ph->ray.pos(nd->axis)) < pq.top().first)
+			{
 				recursive_kdt_search(pq, N, nd->lc, pos);
-		}*/
-	
+			}
+		}
 	}
 
 	std::vector<Photon*> N_near(int N, v3f pos)
@@ -170,6 +197,39 @@ public:
 			pri_que.pop();
 		}
 		for (auto p : visited) p->visited = false;
+		return pht;
+	}
+
+
+	
+	std::vector<Photon*> N_near_with_R(int N, v3f pos, float R) // N is just a boundary
+	{
+		pq_kdt pri_que([](const dist_kdtnd& a, const dist_kdtnd& b) {return a.first < b.first; });
+		recursive_kdt_search(pri_que, N, root, pos);
+		std::vector<Photon*> pht;
+		while (!pri_que.empty())
+		{
+			Photon* p = pri_que.top().second->ph;
+			if ((p->ray.pos - pos).norm() < R) pht.push_back(p);
+			pri_que.pop();
+		}
+		for (auto p : visited) p->visited = false;
+		return pht;
+	}
+
+	std::vector<Photon*> N_near_with_R_norm(int N, v3f pos, float R, v3f nm) // N is just a boundary
+	{
+		pq_kdt pri_que([](const dist_kdtnd& a, const dist_kdtnd& b) {return a.first < b.first; });
+		recursive_kdt_search_with_norm(pri_que, N, root, pos, nm);
+		std::vector<Photon*> pht;
+		while (!pri_que.empty())
+		{
+			Photon* p = pri_que.top().second->ph;
+			if ((p->ray.pos - pos).norm() < R && std::abs((p->ray.pos - pos).normalized().dot(nm)) < 1e-26) pht.push_back(p);
+			pri_que.pop();
+		}
+		for (auto p : visited) p->visited = false;
+		
 		return pht;
 	}
 };

@@ -48,6 +48,20 @@ public:
 		v3f world_dir = (vec(0) * local_x_ax + vec(1) * (-top) + vec(2) * lookat).normalized();
 		return Ray(pos, world_dir);
 	}
+
+	Ray sample_ray_xy(int x, int y, float fltx, int flty)
+	{
+		if (x >= w || y >= h || x < 0 || y < 0) return Ray();
+		v3f center(ccd_w / 2, ccd_h / 2, -focus);
+		float ccdx = (float(x) + fltx ) / w * ccd_w;
+		float ccdy = (float(y) + flty) / h * ccd_h;
+
+		v3f ccd(ccdx, ccdy, 0);
+		v3f vec = ccd - center;
+
+		v3f world_dir = (vec(0) * local_x_ax + vec(1) * (-top) + vec(2) * lookat).normalized();
+		return Ray(pos, world_dir);
+	}
 	
 
 	v3f single_sample(int x, int y, int sx, int sy, Scene & sc, KDT& kdt)
