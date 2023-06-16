@@ -8,4 +8,4 @@ TMD懒得写啊
 
 # 大概长啥样？
 
-<img title="" src="image/0.7big.bmp" alt="">
+<img title="" src="pics/0.7big.bmp" alt="">
