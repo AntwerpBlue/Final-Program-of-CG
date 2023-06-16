@@ -116,7 +116,7 @@ public:
 										sample_point.obj = info.obj;
 										sample_point.pos = info.pos;
 										sample_point.dir = -sample_r.dir;
-										sample_point.beta /= info.obj->lamb_ratio;
+										//sample_point.beta /= info.obj->lamb_ratio;
 										// here we do not calculate the bsdf 
 										man->sppm_pix_list[y * cam.w + x].sample_position_dir_obj_beta.push_back(sample_point);
 										break; // stop the transporting of this ray
@@ -128,7 +128,7 @@ public:
 										v3f in_dir = -sample_r.dir;
 										sample_r = info.obj->get_next_ray(type, sample_r, info.pos);
 										v3f bsdf = info.obj->get_bsdf(type, in_dir, sample_r.dir, info.pos);
-										sample_point.beta = sample_point.beta.cwiseProduct(bsdf) / info.obj->spec_ratio;
+										sample_point.beta = sample_point.beta.cwiseProduct(bsdf);
 									}
 									else if (type == TP::TRAN)
 									{
@@ -136,7 +136,7 @@ public:
 										v3f in_dir = -sample_r.dir;
 										sample_r = info.obj->get_next_ray(type, sample_r, info.pos);
 										v3f bsdf = info.obj->get_bsdf(type, in_dir, sample_r.dir, info.pos);
-										sample_point.beta = sample_point.beta.cwiseProduct(bsdf) / info.obj->tran_ratio;
+										sample_point.beta = sample_point.beta.cwiseProduct(bsdf) ;
 									}
 
 									info = sc.bvh->get_first_intersection(sample_r, lastobj);
@@ -155,7 +155,8 @@ public:
 		const int global_scale = 50000,
 		const int global_map_iter = 32,
 		const int global_search_N = 100,
-		const float global_search_R = 0.05)
+		const float global_search_R = 0.05,
+		const int all_sp = 32)
 	{
 		std::vector<std::pair<int, int>> st_ed_vec;
 		int interval = camera.w / th;
@@ -188,8 +189,8 @@ public:
 		{
 			threads.push_back(
 				std::thread(
-					[](SppmManager* mgr, Scene& sc, int st, int ed, KDT& globalkdt, int global_N, float glb_R, 
-						int global_scale)
+					[](SppmManager* mgr, Scene& sc, int st, int ed, KDT& globalkdt, int global_N, float glb_R,
+						int global_scale, int allsp)
 					{
 						std::random_device dev;
 						std::mt19937 rng(dev());
@@ -207,11 +208,11 @@ public:
 
 										std::uniform_int_distribution<> choose_sp(0, pix.sample_position_dir_obj_beta.size() - 1);
 										Q& sp = pix.sample_position_dir_obj_beta[choose_sp(rng)];
-
+										float ratio = float(pix.sample_position_dir_obj_beta.size()) / allsp;
 									if (std::find(sc.light_src.begin(), sc.light_src.end(), sp.obj) != sc.light_src.end())
 									{
 										// hit the light
-										pix.direct_radiance = pix.direct_radiance_cnt * pix.direct_radiance + sp.obj->emit_power * sp.obj->color;
+										pix.direct_radiance = pix.direct_radiance_cnt * pix.direct_radiance + sp.obj->emit_power * sp.obj->color*ratio;
 										pix.direct_radiance_cnt++;
 										pix.direct_radiance /= pix.direct_radiance_cnt;
 
@@ -232,13 +233,13 @@ public:
 										for (auto& p : near)
 										{
 											v3f bsdf = sp.obj->get_bsdf(Renderable::LAMB, p->ray.dir, sp.dir, sp.pos);
-											flux += 2 * EIGEN_PI * bsdf.cwiseProduct(p->power_rgb) * std::abs(sp.obj->get_norm().dot(p->ray.dir));
+											flux += 2 * EIGEN_PI * bsdf.cwiseProduct(p->power_rgb) * std::abs(sp.obj->get_norm(sp.pos).dot(p->ray.dir));
 										}
 										flux /= global_scale;
 										pix.global_N = near.size();
 										pix.needed_N = near.size();
 										pix.global_shared_radius = glb_R;
-										pix.global_cumulate_pow = flux.cwiseProduct(sp.beta);
+										pix.global_cumulate_pow = flux.cwiseProduct(sp.beta)*ratio;
 									}
 									else if (pix.needed_N>0)
 									{
@@ -247,7 +248,7 @@ public:
 										for (auto& p : near)
 										{
 											v3f bsdf = sp.obj->get_bsdf(Renderable::LAMB, p->ray.dir, sp.dir, sp.pos);
-											flux += 2 * EIGEN_PI * bsdf.cwiseProduct(p->power_rgb) * std::abs(sp.obj->get_norm().dot(p->ray.dir));
+											flux += 2 * EIGEN_PI * bsdf.cwiseProduct(p->power_rgb) * std::abs(sp.obj->get_norm(sp.pos).dot(p->ray.dir));
 										}
 										flux /= global_scale;
 										flux = flux.cwiseProduct(sp.beta);
@@ -256,7 +257,7 @@ public:
 										pix.global_shared_radius *= std::sqrt(fac);
 										pix.global_N += int(dec_fac * M);
 										pix.needed_N = near.size();
-										pix.global_cumulate_pow = (pix.global_cumulate_pow + flux) * fac;
+										pix.global_cumulate_pow = (pix.global_cumulate_pow + flux*ratio) * fac;
 									}
 								}
 							}
@@ -264,7 +265,7 @@ public:
 					},
 					// parameters
 					this, std::ref(sc), st_ed_vec[i].first, st_ed_vec[i].second, std::ref(kdt_global),global_search_N,
-						global_search_R ,global_scale
+						global_search_R ,global_scale,all_sp
 			)
 			);
 		}

@@ -53,7 +53,7 @@ public:
 	virtual v3f get_bsdf(InteractType type, v3f in_dir, v3f out_dir, v3f pos) = 0;
 	virtual std::pair<float, v3f> try_intersect_ray(Ray& in) = 0;
 	virtual Photon emit_a_photon() = 0;
-	virtual v3f get_norm() = 0;
+	virtual v3f get_norm(v3f pos) = 0;
 	virtual v3f sample_a_pos() = 0;
 	virtual float A() = 0;
 
@@ -269,7 +269,7 @@ public:
 	
 
 
-	virtual v3f get_norm() override
+	virtual v3f get_norm(v3f pos) override
 	{
 		return norm;
 	}
@@ -293,3 +293,221 @@ public:
 
 
 
+class Ball :public Renderable
+{
+	using v3f = Eigen::Vector3f;
+public:
+	v3f center;
+	float radius;
+
+	Ball(v3f center, float radius, int n_mat, bool is_sp, bool is_lb, bool is_tr, bool is_lt, float sp_ratio, float lb_ratio, float tr_ratio,
+		v3f c, float emit, float p_n) :
+		Renderable(n_mat,
+			is_sp,
+			is_lb,
+			is_tr,
+			is_lt,
+			sp_ratio,
+			lb_ratio,
+			tr_ratio,
+			c,
+			emit,
+			p_n),
+		center(center), radius(radius)
+	{
+
+		float low[3], up[3];
+		for (int axis = 0; axis < 3; ++axis)
+		{
+			low[axis] = center(axis) - radius;
+			up[axis] = center(axis) + radius;
+		}
+		aabb = AABB(low[0], up[0], low[1], up[1], low[2], up[2]);
+	}
+
+
+	virtual InteractType sample_reflect_type() override
+	{
+		std::uniform_real_distribution<float> choose_material(0, 1);
+		float thresh = choose_material(rng);
+		InteractType current_type = LAMB;
+		float acc = 0.0f;
+		for (auto m : available_mat)
+		{
+			acc += m.second;
+			if (acc >= thresh)
+			{
+				current_type = m.first;
+				break;
+			}
+		}
+		return current_type;
+	}
+	virtual Ray get_next_ray(InteractType type, Ray& in, v3f pos) override
+	{
+		v3f norm = get_norm(pos);
+
+
+		if (type == LAMB) // not realated with the ray in
+		{
+			std::uniform_real_distribution<float> choose_cos_phi(-1, 1);
+			std::uniform_real_distribution<float> choose_theta(0, 2 * EIGEN_PI);
+			float u = choose_cos_phi(rng);
+			float theta = choose_theta(rng);
+
+			// get the sample direction in the local coordinate
+			float x = std::sqrt(1 - u * u) * std::cos(theta);
+			float y = std::sqrt(1 - u * u) * std::sin(theta);
+			float z = std::abs(u);
+
+			// z is the norm
+			// try to get the other two axis
+
+			const v3f try1(1, 0, 0), try2(0,1,0);
+			v3f x_1 = norm.cross(try1);
+			if (x_1.norm() > 1e-20)
+			{
+				x_1.normalize();
+			}
+			else
+			{
+				x_1 = norm.cross(try2).normalized();
+			}
+			v3f y_ax = norm.cross(x_1);
+			return Ray(pos, x_1 * x + y_ax * y + norm * z);
+			
+		}
+		else if (type == SPEC) // use the ray in to calculate the reflected ray
+		{
+			v3f dir_in = -in.dir;
+			v3f dir_out = 2 * norm * norm.dot(dir_in) - dir_in;
+
+			Ray ret(pos, dir_out);
+			return ret;
+		}
+		else if (type == TRAN) // use the ray in and the n to calculate the ray
+		{
+			v3f dir_in = -in.dir;
+			float cos_theta = -in.dir.dot(norm);
+			if (cos_theta >= 0)
+			{ // inward
+				float in_sin = std::sqrt(1 - cos_theta * cos_theta) / n_t;
+				float in_cos = std::sqrt(1 - in_sin * in_sin);
+
+				// the "x-axis" is -norm
+				v3f y_axis = (dir_in.dot(norm) * norm - dir_in).normalized();
+
+				v3f dir_out = -norm * in_cos + y_axis * in_sin;
+				Ray ret(pos, dir_out);
+				return ret;
+
+			}
+			else
+			{ // outward
+				float in_sin = std::sqrt(1 - cos_theta * cos_theta) * n_t;
+
+				if (in_sin >= 1) // full ref
+				{
+					v3f dir_out = 2 * norm * norm.dot(dir_in) - dir_in;
+					Ray ret(pos, dir_out);
+					return ret;
+				}
+				else
+				{
+					float in_cos = std::sqrt(1 - in_sin * in_sin);
+					v3f y_axis = (dir_in.dot(norm) * norm - dir_in).normalized();
+					v3f dir_out = norm * in_cos + y_axis * in_sin;
+					Ray ret(pos, dir_out);
+					return ret;
+
+				}
+			}
+		}
+		else // default
+		{
+			return in; // return itself
+		}
+	}
+
+	virtual v3f get_bsdf(InteractType type, v3f in_dir, v3f out_dir, v3f pos)
+	{
+		if (type == SPEC)
+		{
+			// assume the direction is correct!
+			return color;
+		}
+		else if (type == LAMB)
+		{
+			return color / EIGEN_PI; // no matter what the direction is
+		}
+		else if (type == TRAN)
+		{
+			// assume the direction is correct!
+			return color;
+		}
+		else
+		{
+			return v3f::Zero();
+		}
+	}
+	virtual std::pair<float, v3f> try_intersect_ray(Ray& in)
+	{
+		v3f d = center - in.pos;
+		float costheta_d = d.dot(in.dir);
+		float delta = radius * radius - d.dot(d) + costheta_d * costheta_d;
+		if (delta <= 0)
+		{
+			return std::make_pair(-114514.0f, v3f::Zero());
+		}
+		else
+		{
+			float t1 = costheta_d - std::sqrt(delta);
+			float t2 = costheta_d + std::sqrt(delta);
+			if (t1 > 0)
+			{
+				return std::make_pair(t1, in.get_t(t1));
+			}
+			else if(t2 > 0)
+			{
+				return std::make_pair(t2, in.get_t(t2));
+
+			}
+			else
+			{
+				// no intersection
+				return std::make_pair(-114514.0f, v3f::Zero());
+
+			}
+		}
+	}
+
+	virtual Photon emit_a_photon() override
+	{
+		// this kind of model cannot be a light source
+		return Photon(v3f(0,0,0), center, v3f(1,0,0));
+	}
+	virtual v3f get_norm(v3f pos) override
+	{
+		return (pos - center).normalized();
+	}
+	virtual v3f sample_a_pos() override
+	{
+		std::uniform_real_distribution<float> choose_cos_phi(-1, 1);
+		std::uniform_real_distribution<float> choose_theta(0, 2 * EIGEN_PI);
+		float u = choose_cos_phi(rng);
+		float theta = choose_theta(rng);
+
+		// get the sample direction in the local coordinate
+		float x = std::sqrt(1 - u * u) * std::cos(theta);
+		float y = std::sqrt(1 - u * u) * std::sin(theta);
+		float z = u;
+
+		return v3f(x, y, z)*radius + center;
+	}
+
+	virtual float A() override
+	{
+		return EIGEN_PI * 4 * radius * radius;
+	}
+
+};

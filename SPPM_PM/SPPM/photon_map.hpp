@@ -55,7 +55,7 @@ public:
 								{
 									Ray next_ray = info.obj->get_next_ray(type, ph.ray, info.pos);
 									v3f bsdf = info.obj->get_bsdf(type, -ph.ray.dir, next_ray.dir, info.pos);
-									v3f R = 2 * EIGEN_PI * bsdf * std::abs(ph.ray.dir.dot(info.obj->get_norm()));
+									v3f R = 2 * EIGEN_PI * bsdf * std::abs(ph.ray.dir.dot(info.obj->get_norm(info.pos)));
 									v3f new_power = ph.power_rgb.cwiseProduct(R) * info.obj->lamb_ratio / info.obj->n_materials;
 									// new update the photon
 

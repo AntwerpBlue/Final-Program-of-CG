@@ -17,12 +17,12 @@
 #include<thread>
 #include<chrono>
 using v3f = Eigen::Vector3f;
-constexpr int w = 100;
-constexpr int h = 100;
+constexpr int w = 400;
+constexpr int h = 400;
 
 int main()
 {
-	std::string fn("bocchi.models");
+	std::string fn("all_models_2.models");
 	Scene scene;
 
 	auto v = Scene::parse_triangle_file(fn);
@@ -30,6 +30,12 @@ int main()
 	{
 		scene.append_obj(p);
 	}
+	
+	Renderable* ball = new Ball(v3f(0, -0.5, 0.5), 0.3, 1, true, false, false, false, 1.0, 0, 0, v3f(1, 1, 1), 0, 1);
+	Renderable* ball2 = new Ball(v3f(0.5, -0.3, -0.4), 0.4, 1, false, false, true, false, 0, 0, 1, v3f(132, 189, 154)/255, 0, 1.2);
+	scene.append_obj(ball);
+	scene.append_obj(ball2);
+
 	std::cout << "start constructing bvh" << '\n';
 
 	scene.construct_bvh();
@@ -40,13 +46,13 @@ int main()
 	int ths = std::thread::hardware_concurrency();
 	std::cout << "Available Threads:" << ths << std::endl;
 	SppmManager man(cam);
-	man.initialize_samples_mt(scene, ths, 16, 5);
+	man.initialize_samples_mt(scene, ths, 128, 5);
 	auto now = std::chrono::high_resolution_clock::now();
 
-	for (int i = 0; i < 10; ++i)
+	for (int i = 0; i < 500; ++i)
 	{
 		std::cout << i << std::endl;
-		man.single_run(scene,ths, 100000,5,500, 0.1);
+		man.single_run(scene,ths, 100000,5,700, 0.15);
 		auto end = std::chrono::high_resolution_clock::now();
 		std::cout << "Time:" << std::chrono::duration_cast<std::chrono::seconds>(end - now).count() << std::endl;
 	}

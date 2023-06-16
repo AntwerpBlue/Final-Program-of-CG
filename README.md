@@ -6,6 +6,6 @@ TMD懒得写啊
 
 <img src="https://th.bing.com/th/id/OIP.0MvHQFHZUFeRXw55C2lvegHaJ-?pid=ImgDet&rs=1" title="" alt="野兽先辈表情包（第十三期） - 哔哩哔哩" data-align="center">
 
-
 # 大概长啥样？
-<img src="https://raw.githubusercontent.com/AntwerpBlue/Final-Program-of-CG/main/SPPM_PM/SPPM/0.7big.bmp">
+
+<img title="" src="image/0.7big.bmp" alt="">
