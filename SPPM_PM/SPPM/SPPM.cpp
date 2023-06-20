@@ -49,7 +49,7 @@ int main()
 	man.initialize_samples_mt(scene, ths, 128, 5);
 	auto now = std::chrono::high_resolution_clock::now();
 
-	for (int i = 0; i < 500; ++i)
+	for (int i = 0; i < 100; ++i)
 	{
 		std::cout << i << std::endl;
 		man.single_run(scene,ths, 100000,5,700, 0.15);
