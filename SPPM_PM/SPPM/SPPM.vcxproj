@@ -137,6 +137,7 @@
     <ClInclude Include="aabb.hpp" />
     <ClInclude Include="bvh.hpp" />
     <ClInclude Include="camera.hpp" />
+    <ClInclude Include="config_parse.hpp" />
     <ClInclude Include="photon.hpp" />
     <ClInclude Include="photon_kdt.hpp" />
     <ClInclude Include="photon_map.hpp" />

@@ -16,13 +16,20 @@
 #include <algorithm>
 #include<thread>
 #include<chrono>
+#include"config_parse.hpp"
 using v3f = Eigen::Vector3f;
-constexpr int w = 400;
-constexpr int h = 400;
 
 int main()
 {
-	std::string fn("all_models_2.models");
+
+	SppmConf conf;
+	std::string conf_filename;
+	std::cout << "Input the configuration:";
+	std::cin >> conf_filename;
+	conf.parse(conf_filename);
+	conf.print_conf();
+
+	std::string fn = conf.model_filename;
 	Scene scene;
 
 	auto v = Scene::parse_triangle_file(fn);
@@ -30,29 +37,24 @@ int main()
 	{
 		scene.append_obj(p);
 	}
-	
-	Renderable* ball = new Ball(v3f(0, -0.5, 0.5), 0.3, 1, true, false, false, false, 1.0, 0, 0, v3f(1, 1, 1), 0, 1);
-	Renderable* ball2 = new Ball(v3f(0.5, -0.3, -0.4), 0.4, 1, false, false, true, false, 0, 0, 1, v3f(132, 189, 154)/255, 0, 1.2);
-	scene.append_obj(ball);
-	scene.append_obj(ball2);
 
 	std::cout << "start constructing bvh" << '\n';
 
 	scene.construct_bvh();
 
 	
-	Cam cam(v3f(2, 0, 0), v3f(0, 1, 0), v3f(-1, 0, 0), w, h, 90, 1, 1);
+	Cam cam(conf.cam_pos, conf.cam_top, conf.cam_lookat, conf.rast_w, conf.rast_h, conf.fovY, 1, 1);
 
 	int ths = std::thread::hardware_concurrency();
 	std::cout << "Available Threads:" << ths << std::endl;
 	SppmManager man(cam);
-	man.initialize_samples_mt(scene, ths, 128, 5);
+	man.initialize_samples_mt(scene, ths, conf.single_samples, conf.sample_bounces);
 	auto now = std::chrono::high_resolution_clock::now();
 
-	for (int i = 0; i < 100; ++i)
+	for (int i = 0; i < conf.iter_times; ++i)
 	{
 		std::cout << i << std::endl;
-		man.single_run(scene,ths, 100000,5,700, 0.15);
+		man.single_run(scene,ths, conf.photon_emit,conf.photon_bounce,conf.first_search_N, conf.first_radius);
 		auto end = std::chrono::high_resolution_clock::now();
 		std::cout << "Time:" << std::chrono::duration_cast<std::chrono::seconds>(end - now).count() << std::endl;
 	}
